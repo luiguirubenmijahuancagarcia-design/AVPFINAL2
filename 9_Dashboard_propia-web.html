@@ -1,0 +1,91 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Dashboard concreto permeable</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
+<style>
+:root{--bg:#f6f7f9;--fg:#1d2430;--card:#fff;--mut:#667085;--bd:#e3e6eb;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12161c;--fg:#e8ebf0;--card:#1c222b;--mut:#9aa4b2;--bd:#2c3440}}
+:root[data-theme="dark"]{--bg:#12161c;--fg:#e8ebf0;--card:#1c222b;--mut:#9aa4b2;--bd:#2c3440}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:1180px;margin:0 auto;padding:16px}
+h1{font-size:22px;margin:4px 0}h2{font-size:17px;margin:0 0 8px}.m{color:var(--mut);font-size:13px}
+.c{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:14px;margin-bottom:14px}
+.g{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
+.t{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,480px),1fr))}
+.k{border:1px solid var(--bd);border-radius:8px;padding:8px 10px}.k b{display:block;font-size:19px}
+.f{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:8px}
+select{background:var(--card);color:var(--fg);border:1px solid var(--bd);border-radius:6px;padding:5px}
+.pl{height:360px;width:100%}li{margin:4px 0}
+</style></head><body><main>
+<h1>🧱 Dashboard de concreto permeable: resistencia y permeabilidad</h1>
+<p class="m">Dataset Pervious_Concrete_0.csv · 49 probetas (7 diseños de mezcla × 7 réplicas), ensayadas a 28 días. Resistencia convertida de kg/cm² a MPa y permeabilidad de mm/s a cm/s.</p>
+<div class="c"><div class="f"><b>Filtros:</b>
+Diseño de mezcla (cemento) <select id="fm"></select> Vacíos <select id="fv"></select></div>
+<h2>Indicadores (KPIs)</h2><div class="g" id="kpi"></div></div>
+<div class="t"><div class="c"><h2>Histograma</h2><div class="f">Variable <select id="hv"><option value="y1">Resistencia</option><option value="y2">Permeabilidad</option></select></div><div id="hist" class="pl"></div></div>
+<div class="c"><h2>Dispersión (scatter plot)</h2><div class="f">X <select id="sx"></select> Y <select id="sy"><option value="y1">Resistencia</option><option value="y2">Permeabilidad</option></select></div><div id="sc" class="pl"></div></div></div>
+<div class="t"><div class="c"><h2>Mapa de calor de correlaciones</h2><div id="hm" class="pl"></div></div>
+<div class="c"><h2>Serie</h2><p class="m">La base no tiene fechas (todo se ensayó a 28 días): el eje es el porcentaje de vacíos, el cemento o el orden de registro del archivo.</p><div class="f"><select id="ts"><option value="y1|vac">Resistencia por % de vacíos</option><option value="y2|vac">Permeabilidad por % de vacíos</option><option value="y1|cem">Resistencia por contenido de cemento</option><option value="y2|cem">Permeabilidad por contenido de cemento</option><option value="y1|ord">Resistencia por orden de registro</option><option value="y2|ord">Permeabilidad por orden de registro</option></select></div><div id="ts_" class="pl"></div></div></div>
+<div class="c"><h2>Predicción (Random Forest)</h2>
+<p class="m">Predicciones fuera de muestra (validación cruzada de 5 pliegues, calculadas en Python). Elige una probeta y compara lo previsto con lo ensayado.</p>
+<div class="f">Diseño de mezcla <select id="qm"></select> Réplica <select id="qr"></select> Gráfico de <select id="qt"><option value="y1">Resistencia</option><option value="y2">Permeabilidad</option></select></div>
+<div class="g" id="qk"></div><div id="pr" class="pl" style="margin-top:10px"></div><p class="m" id="qn"></p></div>
+<div class="c"><h2>Conclusiones</h2><ul id="co"></ul></div></main>
+<script>
+const D={"mez":[290.28,304.8,306.96,339.27,377.68,410.52,424.46],"r2g":{"y1":0.51,"y2":-7.6},"cem":[339.27,339.27,339.27,339.27,339.27,339.27,339.27,290.28,290.28,290.28,290.28,290.28,290.28,290.28,306.96,306.96,306.96,306.96,306.96,306.96,306.96,304.8,304.8,304.8,304.8,304.8,304.8,304.8,424.46,424.46,424.46,424.46,424.46,424.46,424.46,377.68,377.68,377.68,377.68,377.68,377.68,377.68,410.52,410.52,410.52,410.52,410.52,410.52,410.52],"gru":[1714.68,1714.68,1714.68,1714.68,1714.68,1714.68,1714.68,1714.68,1714.68,1714.68,1714.68,1714.68,1714.68,1714.68,1610.76,1610.76,1610.76,1610.76,1610.76,1610.76,1610.76,1610.76,1610.76,1610.76,1610.76,1610.76,1610.76,1610.76,1654.06,1654.06,1654.06,1654.06,1654.06,1654.06,1654.06,1654.06,1654.06,1654.06,1654.06,1654.06,1654.06,1654.06,1654.06,1654.06,1654.06,1654.06,1654.06,1654.06,1654.06],"fin":[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,161.03,161.03,161.03,161.03,161.03,161.03,161.03,161.03,161.03,161.03,161.03,161.03,161.03,161.03,82.68,82.68,82.68,82.68,82.68,82.68,82.68,82.68,82.68,82.68,82.68,82.68,82.68,82.68,82.68,82.68,82.68,82.68,82.68,82.68,82.68],"agu":[109.63,109.63,109.63,109.63,109.63,109.63,109.63,106.24,106.24,106.24,106.24,106.24,106.24,106.24,105.59,105.59,105.59,105.59,105.59,105.59,105.59,114.32,114.32,114.32,114.32,114.32,114.32,114.32,127.22,127.22,127.22,127.22,127.22,127.22,127.22,117.07,117.07,117.07,117.07,117.07,117.07,117.07,127.94,127.94,127.94,127.94,127.94,127.94,127.94],"sp":[1.63,1.63,1.63,1.63,1.63,1.63,1.63,1.39,1.39,1.39,1.39,1.39,1.39,1.39,1.47,1.47,1.47,1.47,1.47,1.47,1.47,1.46,1.46,1.46,1.46,1.46,1.46,1.46,2.04,2.04,2.04,2.04,2.04,2.04,2.04,1.81,1.81,1.81,1.81,1.81,1.81,1.81,1.97,1.97,1.97,1.97,1.97,1.97,1.97],"vac":[14,14,14,14,14,14,14,16,16,16,16,16,16,16,13,13,13,13,13,13,13,12,12,12,12,12,12,12,8,8,8,8,8,8,8,11,11,11,11,11,11,11,9,9,9,9,9,9,9],"y1":[13.239,13.435,14.122,12.651,11.866,13.827,14.22,10.885,11.278,11.278,11.18,10.787,11.376,11.082,14.22,15.298,14.122,13.827,14.514,14.22,15.102,13.631,13.925,12.062,13.337,13.827,12.553,12.356,25.105,23.34,25.007,25.007,25.89,25.595,25.301,19.319,19.613,18.633,20.692,18.338,20.986,18.633,23.732,22.751,23.34,21.575,24.222,24.124,23.046],"y2":[0.7122,0.6173,0.5787,0.5974,0.6386,0.6859,0.6386,0.7122,1.001,0.7407,0.7716,0.823,0.9259,0.7122,0.2554,0.2359,0.2231,0.2129,0.197,0.2046,0.2192,0.2502,0.2703,0.2537,0.2806,0.2437,0.2502,0.2785,0.1482,0.153,0.1493,0.1543,0.1487,0.1512,0.1436,0.197,0.1843,0.1816,0.187,0.1929,0.1852,0.1772,0.1772,0.1676,0.1583,0.1382,0.1583,0.1447,0.1632],"p1":[13.262,13.147,13.147,13.628,13.628,13.262,13.628,11.169,11.044,11.098,11.211,11.211,11.044,11.121,14.344,14.333,14.532,14.612,14.344,14.612,14.344,13.213,12.964,13.213,13.052,13.292,13.292,13.292,25.013,25.091,25.091,25.026,25.091,25.091,24.977,19.941,19.941,19.941,19.272,19.941,19.322,19.322,23.269,23.342,23.419,23.419,23.049,23.419,23.269],"p2":[0.6126,0.6543,0.6543,0.6487,0.6487,0.6126,0.6487,0.8363,0.7541,0.8237,0.8178,0.8178,0.7541,0.8259,0.2238,0.2186,0.2203,0.2291,0.2238,0.2291,0.2238,0.2645,0.2596,0.2645,0.258,0.2633,0.2633,0.2633,0.15,0.1489,0.1489,0.149,0.1489,0.1489,0.1508,0.1826,0.1826,0.1826,0.1862,0.1826,0.1886,0.1886,0.1538,0.1571,0.1664,0.1664,0.1584,0.1664,0.1538]};
+const N=D.cem.length,C={responsive:true};
+const L={cem:'Cemento (kg/m³)',gru:'Agregado grueso (kg/m³)',fin:'Agregado fino (kg/m³)',agu:'Agua (kg/m³)',sp:'Superplastificante (kg/m³)',vac:'Vacíos (%)',ac:'Relación agua/cemento (-)',y1:'Resistencia a la compresión (MPa)',y2:'Permeabilidad K (cm/s)'};
+const R=[];for(let i=0;i<N;i++){R.push({i,m:D.mez.indexOf(D.cem[i]),cem:D.cem[i],gru:D.gru[i],fin:D.fin[i],agu:D.agu[i],sp:D.sp[i],vac:D.vac[i],ac:D.agu[i]/D.cem[i],y1:D.y1[i],y2:D.y2[i],p1:D.p1[i],p2:D.p2[i]})}
+const $=id=>document.getElementById(id),v=id=>$(id).value,f2=x=>Number.isFinite(x)?x.toFixed(2):'—',f3=x=>Number.isFinite(x)?x.toFixed(3):'—';
+const sum=a=>a.reduce((x,y)=>x+y,0),mean=a=>sum(a)/a.length,sd=a=>{const m=mean(a);return a.length>1?Math.sqrt(sum(a.map(x=>(x-m)**2))/(a.length-1)):NaN};
+const med=a=>{const s=[...a].sort((x,y)=>x-y),k=s.length>>1;return s.length%2?s[k]:(s[k-1]+s[k])/2};
+const mode=a=>{const c=new Map();a.forEach(x=>c.set(x,(c.get(x)||0)+1));let b=null,n=0;c.forEach((k,x)=>{if(k>n||(k==n&&x<b)){n=k;b=x}});return b};
+const cor=(a,b)=>{const p=mean(a),q=mean(b);let s=0,x=0,y=0;for(let i=0;i<a.length;i++){const u=a[i]-p,w=b[i]-q;s+=u*w;x+=u*u;y+=w*w}return x&&y?s/Math.sqrt(x*y):NaN};
+const ax=t=>({title:t,gridcolor:'rgba(128,128,128,.25)',zerolinecolor:'rgba(128,128,128,.4)'});
+const lay=o=>Object.assign({paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'rgba(0,0,0,0)',font:{color:getComputedStyle(document.body).color},margin:{t:40,r:20,b:55,l:60},legend:{orientation:'h',y:-0.25}},o);
+const opts=(a,fn)=>a.map(x=>`<option value="${x}">${fn?fn(x):x}</option>`).join('');
+const U={y1:'MPa',y2:'cm/s'},dec=t=>t=='y1'?2:3;
+const VAC=[...new Set(D.vac)].sort((a,b)=>a-b);
+$('fm').innerHTML='<option value="all">Todos</option>'+opts(D.mez,x=>x+' kg/m³');
+$('fv').innerHTML='<option value="all">Todos</option>'+opts(VAC,x=>x+' %');
+$('sx').innerHTML=opts(['vac','cem','agu','ac','gru','sp'],k=>L[k]);
+$('qm').innerHTML=opts(D.mez.map((_,i)=>i),i=>`Diseño ${i+1}: cemento ${D.mez[i]} kg/m³`);
+$('qr').innerHTML=opts([0,1,2,3,4,5,6],i=>'Probeta '+(i+1));
+const F=()=>R.filter(r=>(v('fm')=='all'||r.cem==+v('fm'))&&(v('fv')=='all'||r.vac==+v('fv')));
+const cls=x=>x>=21?'Alta (≥ 21 MPa)':x>=15?'Media (15–21 MPa)':'Baja (< 15 MPa)';
+function render(){const f=F();
+ if(!f.length){$('kpi').innerHTML='<p>No hay probetas con estos filtros.</p>';['hist','sc','hm','ts_'].forEach(id=>Plotly.purge(id));return}
+ const a=f.map(r=>r.y1),b=f.map(r=>r.y2);
+ const K=[['Probetas',f.length+' / '+N],['Resistencia media (MPa)',f2(mean(a))],['Permeabilidad media (cm/s)',f3(mean(b))],['Resistencia máx. (MPa)',f2(Math.max(...a))],['Resistencia mín. (MPa)',f2(Math.min(...a))],['Permeabilidad máx. (cm/s)',f3(Math.max(...b))],['Permeabilidad mín. (cm/s)',f3(Math.min(...b))],['Alta resistencia (≥ 21 MPa)',(100*a.filter(x=>x>=21).length/a.length).toFixed(1)+' %'],['Cemento medio (kg/m³)',f2(mean(f.map(r=>r.cem)))],['Relación a/c media',f3(mean(f.map(r=>r.ac)))],['Vacíos medios (%)',f2(mean(f.map(r=>r.vac)))],['Correlación vacíos–resistencia',f2(cor(f.map(r=>r.vac),a))]];
+ $('kpi').innerHTML=K.map(k=>`<div class="k"><span class="m">${k[0]}</span><b>${k[1]}</b></div>`).join('');
+ const hv=v('hv'),h=f.map(r=>r[hv]),M=[[mean(h),'#e74c3c','dash','Media'],[mode(h),'#27ae60','dot','Moda'],[med(h),'#3498db','dashdot','Mediana']];
+ Plotly.react('hist',[{x:h,type:'histogram',nbinsx:20,marker:{color:'#c0392b'},name:'Probetas'}],lay({title:'Distribución de '+L[hv].toLowerCase(),xaxis:ax(L[hv]),yaxis:ax('Frecuencia (n.° de probetas)'),
+  shapes:M.map(m=>({type:'line',x0:m[0],x1:m[0],yref:'paper',y0:0,y1:1,line:{color:m[1],dash:m[2],width:2}})),
+  annotations:M.map((m,k)=>({x:m[0],yref:'paper',y:1-k*.07,text:m[3]+': '+f2(m[0]),showarrow:false,xanchor:'left',font:{color:m[1]}})).concat([{xref:'paper',yref:'paper',x:.99,y:.62,xanchor:'right',text:'Desv. estándar: '+f2(sd(h)),showarrow:false,bordercolor:'#888'}])}),C);
+ const sx=v('sx'),sy=v('sy'),pal=['#2980b9','#c0392b','#27ae60','#8e44ad','#e67e22','#16a085','#7f8c8d'];
+ Plotly.react('sc',D.mez.map((cm,k)=>{const g=f.filter(r=>r.cem==cm);return{x:g.map(r=>r[sx]),y:g.map(r=>r[sy]),mode:'markers',type:'scatter',name:'Cemento '+cm,marker:{size:7,opacity:.8,color:pal[k]}}}).filter(t=>t.x.length),lay({title:L[sy]+' vs. '+L[sx],xaxis:ax(L[sx]),yaxis:ax(L[sy])}),C);
+ const ks=['cem','gru','fin','agu','sp','vac','ac','y1','y2'],z=ks.map(p=>ks.map(q=>{const c=cor(f.map(r=>r[p]),f.map(r=>r[q]));return Number.isNaN(c)?null:c}));
+ Plotly.react('hm',[{z,x:ks.map(k=>L[k].split(' (')[0]),y:ks.map(k=>L[k].split(' (')[0]),type:'heatmap',colorscale:'RdBu',reversescale:true,zmin:-1,zmax:1,texttemplate:'%{z:.2f}',colorbar:{title:'r'}}],lay({title:'Correlación de Pearson (selección actual)',margin:{t:40,r:10,b:110,l:120},xaxis:{tickangle:-45},legend:{}}),C);
+ serie(f)}
+function serie(f){const[t,m]=v('ts').split('|');let tr,xt;
+ if(m!='ord'){const g={};f.forEach(r=>(g[r[m]]=g[r[m]]||[]).push(r[t]));const k=Object.keys(g).map(Number).sort((a,b)=>a-b);tr=[{x:k,y:k.map(c=>mean(g[c])),mode:'lines+markers',name:'Promedio',line:{color:'#c0392b'}}];xt=L[m]}
+ else{const x=f.map(r=>r.i+1),y=f.map(r=>r[t]);tr=[{x,y,mode:'lines+markers',name:L[t],line:{width:1,color:'#2980b9'}},{x,y:y.map((_,i)=>i<6?null:mean(y.slice(i-6,i+1))),mode:'lines',name:'Media móvil (7 probetas)',line:{width:3,color:'#c0392b'}}];xt='Orden de registro en el archivo (n.° de probeta)'}
+ Plotly.react('ts_',tr,lay({title:L[t]+(m!='ord'?' promedio por '+L[m].split(' (')[0].toLowerCase():' por orden de registro'),xaxis:ax(xt),yaxis:ax(L[t])}),C)}
+function pred(){const mi=+v('qm'),rp=+v('qr'),t=v('qt'),pk=t=='y1'?'p1':'p2',r=R.filter(q=>q.m==mi)[rp];
+ $('qk').innerHTML=[['Resistencia prevista',f2(r.p1)+' MPa'],['Resistencia ensayada',f2(r.y1)+' MPa'],['Permeabilidad prevista',f3(r.p2)+' cm/s'],['Permeabilidad ensayada',f3(r.y2)+' cm/s'],['Clasificación (prevista)',cls(r.p1)]].map(k=>`<div class="k"><span class="m">${k[0]}</span><b>${k[1]}</b></div>`).join('');
+ const y=R.map(q=>q[t]),p=R.map(q=>q[pk]),m=mean(y),r2=1-sum(y.map((e,i)=>(e-p[i])**2))/sum(y.map(e=>(e-m)**2)),mae=mean(y.map((e,i)=>Math.abs(e-p[i]))),lim=[Math.min(...y),Math.max(...y)];
+ Plotly.react('pr',[{x:y,y:p,mode:'markers',name:N+' probetas',marker:{size:6,opacity:.55,color:'#2980b9'}},{x:lim,y:lim,mode:'lines',name:'Ideal',line:{dash:'dash',color:'#888'}},{x:[r[t]],y:[r[pk]],mode:'markers',name:'Selección',marker:{size:13,color:'#c0392b',symbol:'diamond'}}],lay({title:'Valor ensayado vs. previsto',xaxis:ax('Ensayado ('+U[t]+')'),yaxis:ax('Previsto ('+U[t]+')')}),C);
+ $('qn').textContent=`R² = ${r2.toFixed(3)} · MAE = ${mae.toFixed(dec(t))} ${U[t]} (validación cruzada aleatoria). Al dejar fuera diseños de mezcla completos, el R² baja a ≈ ${D.r2g[t]}: las réplicas de cada diseño inflan la validación aleatoria y el modelo no sirve para dosificaciones nuevas.`}
+function concl(){const m=(k,fl)=>mean(R.filter(fl).map(r=>r[k])),vmin=Math.min(...D.vac),vmax=Math.max(...D.vac);
+ const r8=m('y1',r=>r.vac==vmin),r16=m('y1',r=>r.vac==vmax),k8=m('y2',r=>r.vac==vmin),k16=m('y2',r=>r.vac==vmax);
+ $('co').innerHTML=[`El porcentaje de vacíos es el factor dominante: la resistencia media pasa de ${f2(r8)} MPa con ${vmin} % de vacíos a ${f2(r16)} MPa con ${vmax} % (correlación r = ${f2(cor(R.map(r=>r.vac),R.map(r=>r.y1)))}).`,
+ `La permeabilidad sube con los vacíos: de ${f3(k8)} cm/s (${vmin} %) a ${f3(k16)} cm/s (${vmax} %) (r = ${f2(cor(R.map(r=>r.vac),R.map(r=>r.y2)))}).`,
+ `Resistencia y permeabilidad son antagónicas (r = ${f2(cor(R.map(r=>r.y1),R.map(r=>r.y2)))}): el diseño es un compromiso entre capacidad estructural y drenaje.`,
+ `La relación agua/cemento se correlaciona con la resistencia (r = ${f2(cor(R.map(r=>r.ac),R.map(r=>r.y1)))}), pero menos que los vacíos: en concreto permeable manda la porosidad.`,
+ `Los valores (≈ ${f2(Math.min(...D.y1))}–${f2(Math.max(...D.y1))} MPa y ≈ ${f2(Math.min(...D.y2))}–${f2(Math.max(...D.y2))} cm/s) están dentro de lo reportado en la literatura para concreto permeable a 28 días.`,
+ `Solo hay 7 diseños de mezcla y una edad (28 días): las variables cambian juntas entre diseños, así que no se puede aislar el efecto de cada una ni extrapolar a dosificaciones nuevas.`].map(t=>`<li>${t}</li>`).join('')}
+['fm','fv','hv','sx','sy','ts'].forEach(id=>$(id).addEventListener('change',render));
+['qm','qr','qt'].forEach(id=>$(id).addEventListener('change',pred));
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{render();pred()});
+render();pred();concl();
+</script></body></html>
